@@ -21,36 +21,50 @@ Godot 4.x GDScript 局域网多人游戏插件。提供房间管理、UDP 广播
 
 1. 将 `addons/easy_multiplayer_gd/` 目录复制到你的项目 `addons/` 下
 2. 在 Godot 编辑器中启用插件：**项目 → 项目设置 → 插件 → EasyMultiplayer-GD → 启用**
-3. 插件会自动注册 `Net` 单例（Autoload）
+3. 插件会自动注册 `EasyMultiplayer` 单例（Autoload）
+
+## 测试
+
+项目包含完整的测试场景和测试指南：
+
+```bash
+# 快速启动测试
+./test.sh
+
+# 或手动打开
+godot project.godot
+```
+
+详细测试步骤请参考 [TEST_GUIDE.md](TEST_GUIDE.md)。
 
 ## 快速开始
 
 ```gdscript
 # 获取单例
-var net = Net
-net.game_version = "1.0.0"
+var multiplayer_manager = EasyMultiplayer
+multiplayer_manager.game_version = "1.0.0"
 
 # 监听信号
-net.connection_succeeded.connect(func(): print("连接成功"))
-net.peer_joined.connect(func(id): print("玩家加入: ", id))
-net.peer_left.connect(func(id): print("玩家离开: ", id))
+multiplayer_manager.connection_succeeded.connect(func(): print("连接成功"))
+multiplayer_manager.peer_joined.connect(func(id): print("玩家加入: ", id))
+multiplayer_manager.peer_left.connect(func(id): print("玩家离开: ", id))
 
 # 创建房间（Host）
-net.create_room("我的房间", "MyGame")
+multiplayer_manager.create_room("我的房间", "MyGame")
 
 # 发现并加入房间（Client）
-net.discovery.room_found.connect(func(room):
-    print("发现房间: ", room.info.host_name, " @ ", room.host_ip, ":", room.info.port)
-    net.join_room(room.host_ip, room.info.port)
+multiplayer_manager.discovery.room_found.connect(func(ip, room_info):
+    print("发现房间: ", room_info.host_name, " @ ", ip, ":", room_info.port)
+    multiplayer_manager.join_room(ip, room_info.port)
 )
-net.room_client.start_searching()
+multiplayer_manager.room_client.start_searching()
 
 # 发送消息
-net.send_message(peer_id, "chat", "Hello!")
-net.broadcast_message("game_state", data)
+multiplayer_manager.send_message(peer_id, "chat", "Hello!")
+multiplayer_manager.broadcast_message("game_state", data)
 
 # 优雅退出
-net.graceful_disconnect("quit")
+multiplayer_manager.graceful_disconnect("quit")
 ```
 
 ## API 概要
