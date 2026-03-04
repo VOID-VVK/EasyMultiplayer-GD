@@ -31,3 +31,19 @@ enum NetQuality {
 	WARNING,  ## 网络质量一般，100ms ≤ RTT < 300ms
 	BAD       ## 网络质量差，RTT ≥ 300ms 或断线
 }
+
+## 客户端状态枚举，表示 RoomClient 的生命周期阶段。
+##
+## 状态转换规则：
+## - Idle → Searching：调用 start_searching()
+## - Searching → Joining：调用 join_room()
+## - Joining → InRoom：连接成功
+## - InRoom → GameStarting：收到游戏开始消息
+## - Any → Idle：调用 leave_room() 或连接失败
+enum ClientState {
+	IDLE,           ## 初始状态或已离开房间
+	SEARCHING,      ## 正在搜索局域网房间
+	JOINING,        ## 正在加入房间
+	IN_ROOM,        ## 已在房间中
+	GAME_STARTING   ## 游戏即将开始
+}
