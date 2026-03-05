@@ -1,5 +1,5 @@
 class_name UdpBroadcastDiscovery
-extends Node
+extends DiscoveryBase
 
 ## 基于 UDP 广播的默认房间发现实现。
 ##
@@ -20,7 +20,6 @@ var _instance_id: String = ""
 # ── 广播端（Host） ──
 
 var _broadcaster: PacketPeerUDP = null
-var _broadcasting: bool = false
 var _broadcast_timer: float = 0.0
 var _broadcast_info: RoomInfo = null
 
@@ -28,31 +27,11 @@ var _broadcast_info: RoomInfo = null
 
 var _listener: PacketPeerUDP = null
 var _listener_thread: Thread = null
-var _listening: bool = false
-var _discovered_rooms: Dictionary = {}  # key: "ip:port", value: DiscoveredRoom
 
 # ── 本机 IP 过滤 ──
 
 var _local_ips: Dictionary = {}  # HashSet 用 Dictionary 模拟
 var _local_ips_collected: bool = false
-
-# ── DiscoveryBase 属性 ──
-
-var is_broadcasting: bool:
-	get: return _broadcasting
-
-var is_listening: bool:
-	get: return _listening
-
-var rooms: Dictionary:
-	get: return _discovered_rooms
-
-# ── DiscoveryBase 信号 ──
-
-signal room_found(room: RoomInfo.DiscoveredRoom)
-signal room_lost(room_key: String)
-signal room_list_updated()
-
 
 func _init() -> void:
 	# 生成实例 ID（8 位随机字符串）
@@ -75,7 +54,7 @@ func set_config(config: EasyMultiplayerConfig) -> void:
 # ── 广播端 API ──
 
 func start_broadcast(info: RoomInfo) -> void:
-	if _broadcasting:
+	if is_broadcasting:
 		stop_broadcast()
 
 	_broadcast_info = info
@@ -85,13 +64,13 @@ func start_broadcast(info: RoomInfo) -> void:
 
 	_broadcaster = PacketPeerUDP.new()
 	_broadcaster.set_broadcast_enabled(true)
-	_broadcasting = true
+	is_broadcasting = true
 	_broadcast_timer = 0.0
 	print("[UdpBroadcastDiscovery] 开始广播房间: ", info.host_name, " (", info.game_type, "), 端口: ", _config.broadcast_port)
 
 
 func stop_broadcast() -> void:
-	_broadcasting = false
+	is_broadcasting = false
 	if _broadcaster != null:
 		_broadcaster.close()
 		_broadcaster = null
@@ -102,7 +81,7 @@ func stop_broadcast() -> void:
 # ── 监听端 API ──
 
 func start_listening() -> void:
-	if _listening:
+	if is_listening:
 		stop_listening()
 
 	_collect_local_ips()
@@ -115,8 +94,8 @@ func start_listening() -> void:
 		return
 
 	_listener.set_broadcast_enabled(true)
-	_listening = true
-	_discovered_rooms.clear()
+	is_listening = true
+	rooms.clear()
 
 	# 启动后台线程接收 UDP 数据
 	_listener_thread = Thread.new()
@@ -126,7 +105,7 @@ func start_listening() -> void:
 
 
 func stop_listening() -> void:
-	_listening = false
+	is_listening = false
 
 	# 停止线程
 	if _listener_thread != null and _listener_thread.is_alive():
@@ -137,7 +116,7 @@ func stop_listening() -> void:
 		_listener.close()
 		_listener = null
 
-	_discovered_rooms.clear()
+	rooms.clear()
 	print("[UdpBroadcastDiscovery] 已停止监听")
 
 
@@ -145,14 +124,14 @@ func stop_listening() -> void:
 
 func _process(delta: float) -> void:
 	# Host 端定期广播
-	if _broadcasting and _broadcast_info != null and _broadcaster != null:
+	if is_broadcasting and _broadcast_info != null and _broadcaster != null:
 		_broadcast_timer += delta
 		if _broadcast_timer >= _config.broadcast_interval:
 			_broadcast_timer = 0.0
 			_send_broadcast()
 
 	# Client 端清理超时房间
-	if _listening:
+	if is_listening:
 		_cleanup_stale_rooms()
 
 
@@ -191,7 +170,7 @@ func _send_broadcast() -> void:
 
 ## 后台线程：接收 UDP 数据
 func _udp_receive_thread() -> void:
-	while _listening and _listener != null:
+	while is_listening and _listener != null:
 		if _listener.get_available_packet_count() > 0:
 			var packet = _listener.get_packet()
 			var ip = _listener.get_packet_ip()
@@ -253,14 +232,14 @@ func _handle_room_found(ip: String, json_str: String) -> void:
 	info.metadata = data.get("Metadata", {})
 
 	var key = ip + ":" + str(info.port)
-	var is_new = not _discovered_rooms.has(key)
+	var is_new = not rooms.has(key)
 
 	var room = RoomInfo.DiscoveredRoom.new()
 	room.info = info
 	room.host_ip = ip
 	room.last_seen = Time.get_unix_time_from_system()
 
-	_discovered_rooms[key] = room
+	rooms[key] = room
 
 	if is_new:
 		print("[UdpBroadcastDiscovery] 发现房间: ", info.host_name, " @ ", ip, ":", info.port)
@@ -274,13 +253,13 @@ func _cleanup_stale_rooms() -> void:
 	var now = Time.get_unix_time_from_system()
 	var stale_keys = []
 
-	for key in _discovered_rooms.keys():
-		var room = _discovered_rooms[key]
+	for key in rooms.keys():
+		var room = rooms[key]
 		if now - room.last_seen > _config.room_timeout:
 			stale_keys.append(key)
 
 	for key in stale_keys:
-		_discovered_rooms.erase(key)
+		rooms.erase(key)
 		print("[UdpBroadcastDiscovery] 房间超时移除: ", key)
 		room_lost.emit(key)
 

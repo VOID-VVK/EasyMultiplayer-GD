@@ -16,10 +16,10 @@ extends Node
 const HEARTBEAT_CHANNEL: int = 255
 
 ## Ping 包标识字节
-const PING_PAYLOAD: PackedByteArray = PackedByteArray([0x01])
+static var PING_PAYLOAD: PackedByteArray = PackedByteArray([0x01])
 
 ## Pong 包标识字节
-const PONG_PAYLOAD: PackedByteArray = PackedByteArray([0x02])
+static var PONG_PAYLOAD: PackedByteArray = PackedByteArray([0x02])
 
 # ── 依赖 ──
 

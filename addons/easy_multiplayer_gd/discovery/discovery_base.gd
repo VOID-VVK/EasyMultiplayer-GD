@@ -1,5 +1,5 @@
 class_name DiscoveryBase
-extends RefCounted
+extends Node
 
 ## 房间发现层抽象基类。所有发现实现（UDP 广播、Lobby 服务器等）均需继承此类。
 ##

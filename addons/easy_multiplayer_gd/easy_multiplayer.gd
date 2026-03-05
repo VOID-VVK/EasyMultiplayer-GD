@@ -40,8 +40,8 @@ var game_version: String = "1.0.0"
 
 # ── 模块实例 ──
 
-var _transport: ENetTransport = null
-var _discovery: UdpBroadcastDiscovery = null
+var _transport: TransportBase = null
+var _discovery: DiscoveryBase = null
 var _heartbeat: HeartbeatManager = null
 var _message_channel: MessageChannel = null
 var _room_host: RoomHost = null
@@ -163,14 +163,11 @@ signal full_sync_requested(peer_id: int)
 func _ready() -> void:
 	# 创建传输层
 	_transport = ENetTransport.new()
-	_transport.initialize(get_tree())
 
 	# 创建发现层
 	_discovery = UdpBroadcastDiscovery.new()
 	_discovery.set_config(config)
 	add_child(_discovery)
-	# 提前在后台线程预加载本机 IP，避免 start_listening 首次调用时阻塞主线程
-	_discovery.preload_local_ips()
 
 	# 创建心跳管理器
 	_heartbeat = HeartbeatManager.new()
@@ -181,7 +178,6 @@ func _ready() -> void:
 	_message_channel = MessageChannel.new()
 	_message_channel.set_transport(_transport)
 	_message_channel.rpc_min_interval_ms = config.rpc_min_interval_ms
-	add_child(_message_channel)
 
 	# 创建房间模块
 	_room_host = RoomHost.new()
@@ -582,4 +578,3 @@ func _on_room_client_state_changed(old_state: ConnectionState.ClientState, new_s
 		state = ConnectionState.State.DISCONNECTED
 	else:
 		print("[EasyMultiplayer] OnRoomClientStateChanged: ", old_state, " → ", new_state, "，EasyMP.State=", _state, "（无操作）")
-
